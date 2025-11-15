@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Basit Domain Checker - Render.com için
-Tek dosya, sade çalışma
-"""
-
 from flask import Flask
 import requests
 from bs4 import BeautifulSoup
@@ -14,86 +8,80 @@ import os
 
 app = Flask(__name__)
 
-# ============================================================================
-# BURADAN AYARLARI DEĞİŞTİR
-# ============================================================================
-
+# BURAYA DOMAIN'LERİNİ EKLE
 DOMAINS = [
     "matadorbet937.com",
-    # Buraya diğer domain'leri ekle
+    # "ornekdomain.com",  # Buraya ekle
 ]
 
-CHECK_INTERVAL = 1800  # 30 dakika (saniye)
-
-# ============================================================================
+CHECK_INTERVAL = 1800  # 30 dakika
 
 def check_domain(domain):
     try:
         url = "https://www.guvenlinet.org.tr/sorgula"
-        data = {'domain': domain}
-        
-        response = requests.post(url, data=data, timeout=30, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
+        response = requests.post(url, data={'domain': domain}, timeout=30, 
+                               headers={'User-Agent': 'Mozilla/5.0'})
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Çocuk Profili kontrol et
-            cocuk_kirmizi = False
-            if soup.find(class_='text-warning') or '!' in soup.get_text():
-                cocuk_kirmizi = True
-            
+            cocuk_kirmizi = bool(soup.find(class_='text-warning'))
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
             if cocuk_kirmizi:
-                msg = f"⚠️ UYARI [{timestamp}] {domain} - ÇOCUK PROFİLİ KIRMIZI!"
-                print(msg)
-                return {'domain': domain, 'status': 'kırmızı', 'time': timestamp}
+                print(f"⚠️ UYARI [{timestamp}] {domain} - ÇOCUK PROFİLİ KIRMIZI!")
             else:
                 print(f"✓ [{timestamp}] {domain} - Güvenli")
-                return {'domain': domain, 'status': 'yeşil', 'time': timestamp}
-        else:
-            print(f"✗ {domain} - Hata: HTTP {response.status_code}")
-            return {'domain': domain, 'status': 'hata'}
-            
     except Exception as e:
-        print(f"✗ {domain} - Hata: {str(e)}")
-        return {'domain': domain, 'status': 'hata'}
+        print(f"✗ {domain} - Hata: {e}")
 
 def background_check():
-    print(f"🤖 Bot başlatıldı - Her {CHECK_INTERVAL//60} dakikada kontrol")
-    print(f"📍 İzlenen domain'ler: {', '.join(DOMAINS)}\n")
-    
+    print(f"🤖 Bot başladı - {len(DOMAINS)} domain izleniyor")
     while True:
-        print(f"\n{'='*60}")
-        print(f"🔍 Kontrol başladı: {datetime.now().strftime('%H:%M:%S')}")
-        print(f"{'='*60}")
-        
+        print(f"\n🔍 Kontrol: {datetime.now().strftime('%H:%M:%S')}")
         for domain in DOMAINS:
             check_domain(domain)
             time.sleep(2)
-        
-        next_time = datetime.now().timestamp() + CHECK_INTERVAL
-        next_str = datetime.fromtimestamp(next_time).strftime('%H:%M:%S')
-        print(f"\n⏰ Sonraki kontrol: {next_str}")
-        print(f"{'='*60}\n")
-        
+        print(f"⏰ Sonraki kontrol: {(datetime.now().timestamp() + CHECK_INTERVAL)}")
         time.sleep(CHECK_INTERVAL)
 
 @app.route('/')
 def home():
-    return "Domain Checker Bot - Çalışıyor ✓"
+    return "Bot çalışıyor ✓"
 
 @app.route('/health')
 def health():
     return {'status': 'ok'}
 
 if __name__ == '__main__':
-    # Arka plan kontrolü başlat
     thread = threading.Thread(target=background_check, daemon=True)
     thread.start()
-    
-    # Flask başlat
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 10000)))
+```
+
+4. **"Commit changes"** bas
+
+**İkinci dosya - requirements.txt:**
+1. **"Add file"** → **"Create new file"**
+2. İsim: `requirements.txt`
+3. Şunu yapıştır:
+```
+flask==3.0.0
+requests==2.31.0
+beautifulsoup4==4.12.2
+lxml==5.1.0
+gunicorn==21.2.0
+```
+
+4. **"Commit changes"** bas
+
+### ADIM 4: Render'a Deploy
+
+1. https://render.com → Giriş yap
+2. **"New +" → "Web Service"**
+3. **Repository'ni seç** (domain-bot)
+4. Ayarlar:
+```
+   Name: domain-bot
+   Build Command: pip install -r requirements.txt
+   Start Command: gunicorn simple_bot:app
+   Plan: FREE
